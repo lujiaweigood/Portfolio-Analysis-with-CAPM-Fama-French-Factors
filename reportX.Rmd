@@ -1,0 +1,347 @@
+---
+title: "FA 541 Assignment4"
+author: "Jiawei Lu  Yucan Li"
+date: "10/6/2021"
+output: html_document
+---
+Found 15 stocks from 15 different sectors in other to minimize the covariance between each other’s. The Market capitalization of each selected stock is located in the top three of its respective sectors. The mean-variance model is then used to calculate the optimal ratio between each stock. The train period is from 2019-01-01 to 2021-03-30. The test period is from 2021-04-01 to 2021-09-30. Finally, the returns, volatilities and sharpe ratios are calculated in comparison to the S&P 500, Nasdaq index and Dow Jones Industrial Average.  
+
+Selected sectors: COMMERCIAL SERVICES, COMMUNICATIONS, CONSUMER, DISTRIBUTION SERVICES, ELECTRONIC TECHNOLOGY, ENERGY MINERALS, FINANCE, HEALTH, INDUSTRIAL SERVICES, PROCESS INDUSTRIES, PRODUCER MANUFACTURING, RETAIL TRADE, TECHNOLOGY SERVICES, TRANSPORTATION, UTILITIES.  
+Reference : https://www.tradingview.com/markets/stocks-usa/sectorandindustry-sector/  
+
+```{r}
+library(quantmod)
+library(xts)
+set.seed(100)
+
+p1=get(getSymbols("MCO",from="2018-01-01",to="2021-03-30"))
+pMCO<- p1[,6]
+p2=get(getSymbols("VZ",from="2018-01-01",to="2021-03-30"))
+pKORE <- p2[,6]
+p3=get(getSymbols("TSLA",from="2018-01-01",to="2021-03-30"))
+pTSLA <- p3[,6]
+p4=get(getSymbols("SYY",from="2018-01-01",to="2021-03-30"))
+pSYY <- p4[,6]
+p5=get(getSymbols("AAPL",from="2018-01-01",to="2021-03-30"))
+pAAPL <- p5[,6]
+p6=get(getSymbols("XOM",from="2018-01-01",to="2021-03-30"))
+pXOM <- p6[,6]
+p7=get(getSymbols("JPM",from="2018-01-01",to="2021-03-30"))
+pJPM <- p7[,6]
+p8=get(getSymbols("UNH",from="2018-01-01",to="2021-03-30"))
+pUNH <- p8[,6]
+
+p9=get(getSymbols("ENB",from="2018-01-01",to="2021-03-30"))
+pENB <- p9[,6]
+
+
+p10=get(getSymbols("LIN",from="2018-01-01",to="2021-03-30"))
+pLIN <- p10[,6]
+
+p11=get(getSymbols("ASML",from="2018-01-01",to="2021-03-30"))
+pASML <- p11[,6]
+
+p12=get(getSymbols("AMZN",from="2018-01-01",to="2021-03-30"))
+pAMZN <- p12[,6]
+
+p13=get(getSymbols("MSFT",from="2018-01-01",to="2021-03-30"))
+pMSFT <- p13[,6]
+
+p14=get(getSymbols("UPS",from="2018-01-01",to="2021-03-30"))
+pUPS <- p14[,6]
+
+p15=get(getSymbols("NEE",from="2018-01-01",to="2021-03-30"))
+pNEE <- p15[,6]
+
+
+sp500 <- new.env()
+
+p16 <- getSymbols("^GSPC", src = "yahoo",from = as.Date("2018-01-01"), to = as.Date("2021-03-30"))
+
+
+p17= getSymbols("^IXIC", src = "yahoo",from = as.Date("2018-01-01"), to = as.Date("2021-03-30"))
+
+
+p18 =getSymbols("^DJI", src = "yahoo",from = as.Date("2018-01-01"), to = as.Date("2021-03-30"))
+
+
+
+plot(Ad(GSPC))
+plot(Ad(IXIC))
+plot(Ad(DJI))
+
+price<-cbind(pMCO,pKORE,pTSLA,pSYY,pAAPL,pXOM,pJPM,pUNH,pENB,pLIN,pASML,pAMZN,pMSFT,pUPS,pNEE)
+plot(price)
+summary(price)
+
+return<-na.omit(log(price/lag(price)))
+
+length(names(return))
+# Compute a correlation matrix
+corr <- round(cor(return), 1)
+head(corr[, 1:15])
+
+library(ggcorrplot)
+ggcorrplot(corr)
+```
+
+```{r}
+library(tidyquant) # To download the data
+library(plotly) # To create interactive charts
+library(timetk) # To manipulate the data series
+library(tibble)
+library(dplyr)
+
+tick = names(return)
+wts <- runif(n = length(tick))
+print(wts)
+print(sum(wts))
+wts <- wts/sum(wts)
+print(wts)
+sum(wts)
+
+mean_ret <- colMeans(return)
+print(round(mean_ret, 5))
+port_returns <- (sum(wts * mean_ret) + 1)^252 - 1
+port_returns
+
+cov_mat <- cov(return) * 252
+
+port_risk <- sqrt(t(wts) %*% (cov_mat %*% wts))
+print(port_risk)
+
+# Since Risk free rate is 0.0053/25% 
+sharpe_ratio <- (port_returns-0.0053/2)/port_risk
+print(sharpe_ratio)
+
+
+# Calculate the random weights
+wts <- runif(n = length(tick))
+wts <- wts/sum(wts)
+
+# Calculate the portfolio returns
+port_returns <- (sum(wts * mean_ret) + 1)^252 - 1
+
+# Calculate the portfolio risk
+port_risk <- sqrt(t(wts) %*% (cov_mat %*% wts))
+
+# Calculate the Sharpe Ratio
+sharpe_ratio <- port_returns/port_risk
+
+print(wts)
+```
+
+```{r}
+num_port <- 100000
+
+# Creating a matrix to store the weights
+
+all_wts <- matrix(nrow = num_port,
+                  ncol = length(tick))
+
+# Creating an empty vector to store
+# Portfolio returns
+
+port_returns <- vector('numeric', length = num_port)
+
+# Creating an empty vector to store
+# Portfolio Standard deviation
+
+port_risk <- vector('numeric', length = num_port)
+
+# Creating an empty vector to store
+# Portfolio Sharpe Ratio
+
+sharpe_ratio <- vector('numeric', length = num_port)
+```
+
+```{r}
+for (i in seq_along(port_returns)) {
+  
+  wts <- runif(length(tick))
+  wts <- wts/sum(wts)
+  
+  # Storing weight in the matrix
+  all_wts[i,] <- wts
+  
+  # Portfolio returns
+  
+  port_ret <- sum(wts * mean_ret)
+  port_ret <- ((port_ret + 1)^252) - 1
+  
+  # Storing Portfolio Returns values
+  port_returns[i] <- port_ret
+  
+  
+  # Creating and storing portfolio risk
+  port_sd <- sqrt(t(wts) %*% (cov_mat  %*% wts))
+  port_risk[i] <- port_sd
+  
+  # Creating and storing Portfolio Sharpe Ratios
+  # Assuming 0% Risk free rate
+  
+  sr <- (port_ret-0.0053/2)/port_sd
+  sharpe_ratio[i] <- sr
+  
+}
+```
+
+```{r}
+# Storing the values in the table
+portfolio_values <- tibble(Return = port_returns,
+                  Risk = port_risk,
+                  SharpeRatio = sharpe_ratio)
+
+
+# Converting matrix to a tibble and changing column names
+all_wts <- tk_tbl(all_wts)
+```
+
+```{r}
+colnames(all_wts) <- colnames(return)
+
+# Combing all the values together
+portfolio_values <- tk_tbl(cbind(all_wts, portfolio_values))
+```
+
+```{r}
+head(portfolio_values)
+```
+
+```{r}
+#min_var <- portfolio_values[which.min(portfolio_values$Risk),]
+max_sr <- portfolio_values[which.max(portfolio_values$SharpeRatio),]
+```
+
+```{r}
+library(tidyr)
+a = c()
+for (i in max_sr[1:15]){
+ a =c(a,i)
+}
+sum(a)
+as.list(max_sr)
+
+library(data.table)
+data = as.data.frame(t(t(return) * a))
+data$sum = rowSums(data)
+
+f = read.csv("ff.csv")
+
+colnames(f) <- c("Date", "Mkt.Rf", "SMB", "HML", "Rf")
+
+library(lubridate)
+
+f$Date <- ymd(f$Date)
+df = cbind(data,f)
+df$fundX = (df$sum - df$Rf)*100
+```
+
+```{r}
+#data2  = xts(data$sum, order.by=index(data))
+plot(x = index(data), y = data$sum, type = "l", main = "Portfolio Daily Returns")
+plot(cumsum(data$sum), type = "l", main = "Portfolio Cumulative Returns")
+```
+
+
+```{r}
+market_return1 <- na.omit(diff(log(Ad(GSPC)), lag=1))
+#tibble_as_list(max_sr[1:15])
+#sum(port_returns * 2 * as.list(max_sr)[16:])
+
+GSPC = (market_return1-df$Rf)*100
+summary(lm(df$fundX~ GSPC ))
+
+GSPC = as.matrix(GSPC)
+plot(GSPC ,df$fundX)
+abline(lm(df$fundX~GSPC))
+```
+
+```{r}
+market_return2 <- na.omit(diff(log(Ad(IXIC)), lag=1))
+
+IXIC = (market_return2-df$Rf)*100
+
+summary(lm(df$fundX~IXIC))
+
+IXIC = as.matrix(IXIC)
+plot(IXIC,df$fundX)
+abline(lm(df$fundX~IXIC))
+```
+
+```{r}
+market_return3 <- na.omit(diff(log(Ad(DJI)), lag=1))
+
+DJI = (market_return3-df$Rf)*100
+
+summary(lm(df$fundX~DJI))
+
+DJI = as.matrix(DJI)
+plot(DJI,df$fundX)
+abline(lm(df$fundX~DJI))
+```
+`
+
+```{r}
+#market_return1 <- na.omit(diff(log(Ad(GSPC)), lag=1))
+#tibble_as_list(max_sr[1:15])
+#sum(port_returns * 2 * as.list(max_sr)[16:])
+
+#Market_Risk_Premium = 100*market_return1-0.0053
+
+model = lm(df$fundX~ df$SMB + df$HML + GSPC)
+summary(lm(df$fundX~ df$SMB + df$HML + GSPC))
+
+plot(cumsum(df$sum*100), type = "l", main = "Portfolio Cumulative Returns")
+model
+```
+
+```{r}
+#"2018-01-01",to="2021-03-30"
+#lines(as.ts(cumsum(df$SMB)))
+plot(as.ts(df$SMB), main=NA, ylim=c(-15,15),col='black')
+lines(as.ts(df$HML),col="red")
+lines(as.ts(df$Mkt.Rf),col='green')
+lines(as.ts(df$Rf),col='blue')
+legend(0, 15, legend=c("SMB", "HML", "Mkt-Rf","Rf"), 
+       col=c('black', 'red','green','blue'), lty=1)
+mtext(text="Fama/French Factors from K. French", 
+      adj=0, outer=T, line=-2, cex=1.5)
+head(df)
+```
+
+```{r}
+plot(as.ts((cumsum(df$sum)*100-df$Rf*100)), main=NA, ylim=c(-70,120),col='black')
+lines(as.ts(cumsum(market_return1)*100+df$Rf*100),col="red")
+legend(0, 48, legend=c("Weight Portfolio", "Market index"), 
+       col=c('black', 'red'), lty=1)
+mtext(text="Fama/French Factors from K. French", 
+      adj=0, outer=T, line=-2, cex=1.5)
+
+```
+
+```{r}
+plot(as.ts((cumsum(df$sum)*100-df$Rf*100)), main=NA, ylim=c(-70,120),col='black')
+lines(as.ts(cumsum(market_return2)*100+df$Rf*100),col="red")
+legend(0, 48, legend=c("Weight Portfolio", "Market index"), 
+       col=c('black', 'red'), lty=1)
+mtext(text="Fama/French Factors from K. French", 
+      adj=0, outer=T, line=-2, cex=1.5)
+```
+
+```{r}
+plot(as.ts((cumsum(df$sum)*100-df$Rf*100)), main=NA, ylim=c(-70,120),col='black')
+lines(as.ts(cumsum(market_return3)*100+df$Rf*100),col="red")
+legend(0, 48, legend=c("Weight Portfolio", "Market index"), 
+       col=c('black', 'red'), lty=1)
+mtext(text="Fama/French Factors from K. French", 
+      adj=0, outer=T, line=-2, cex=1.5)
+```
+
+```{r}
+table = data.frame(alpha=coef(model)["(Intercept)"],beta =coef(model)["GSPC"],sharpe_ratio = max_sr$SharpeRatio,return = max_sr$Return, risk = max_sr$Risk)
+rownames(table) = "values"
+table
+
+```
+
